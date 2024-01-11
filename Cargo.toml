@@ -1,0 +1,30 @@
+[package]
+name = "rust-libp2p-chat"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.35", features = ["full"] }
+async-trait = "0.1"
+futures = "0.3.30"
+libp2p = { version = "0.53.2", features = [
+  "tokio",
+  "gossipsub",
+  "kad",
+  "dns",
+  "macros",
+  "identify",
+  "quic",
+  "rsa",
+  "ping",
+  "autonat",
+  "relay",
+] }
+tracing = "0.1.37"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1.0.76"
+clap = { version = "4.4.12", features = ["derive"] }
+env_logger = "0.10"
+bs58 = "0.5.0"
