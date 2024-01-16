@@ -46,6 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     bootstrap,
     silent,
   } = Args::parse();
+  let port = std::env::var("PORT").unwrap_or("0".to_string());
 
   // Create a random key for ourselves & read user's inputs
   let keypair = if let Some(s) = seed {
@@ -97,7 +98,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
   // Peer node: Listen on all interfaces and whatever port the OS assigns
   swarm.behaviour_mut().kademlia.set_mode(Some(Mode::Server));
-  swarm.listen_on("/ip4/0.0.0.0/tcp/8080".parse()?)?;
+  swarm.listen_on(format!("/ip4/0.0.0.0/tcp/{port}").parse()?)?;
 
   if let Some(bootstrap_addr) = bootstrap {
     // Add peers to the DHT
