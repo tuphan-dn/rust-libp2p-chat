@@ -4,7 +4,7 @@ use libp2p::{
   autonat, identify,
   identity::Keypair,
   kad::{self, store, BootstrapOk, GetClosestPeersOk, Mode},
-  noise, ping, relay,
+  noise, ping,
   swarm::{NetworkBehaviour, SwarmEvent},
   tcp, yamux, SwarmBuilder,
 };
@@ -34,7 +34,6 @@ struct MyBehaviour {
   identify: identify::Behaviour,
   kademlia: kad::Behaviour<store::MemoryStore>,
   autonat: autonat::Behaviour,
-  relay: relay::Behaviour,
 }
 
 #[tokio::main]
@@ -82,15 +81,12 @@ async fn main() -> Result<(), Box<dyn Error>> {
       let kademlia = kad::Behaviour::with_config(key.public().to_peer_id(), store, cfg);
       // Create a AutoNAT behaviour.
       let autonat = autonat::Behaviour::new(key.public().to_peer_id(), Default::default());
-      // Create a Relay behaviour.
-      let relay = relay::Behaviour::new(key.public().to_peer_id(), Default::default());
       // Return my behavour
       Ok(MyBehaviour {
         ping,
         identify,
         kademlia,
         autonat,
-        relay,
       })
     })?
     .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(3600))) // Disconnected after 1 hour idle

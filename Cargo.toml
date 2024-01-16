@@ -22,7 +22,6 @@ libp2p = { version = "0.53.2", features = [
   "rsa",
   "ping",
   "autonat",
-  "relay",
   "ping",
 ] }
 tracing = "0.1.37"
