@@ -44,6 +44,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     peer::{ed25519_from_seed, parse_peer_id},
   };
 
+  let topic = gossipsub::IdentTopic::new("desnet-the-room");
   let Args {
     seed,
     bootstrap,
@@ -129,10 +130,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
   // Kick it off
   loop {
     select! {
-      Ok(Some(multiaddr)) = stdin.next_line() => {
-        // Search for the closest peers
-        println!("🔍 Searching for the closest peer to {multiaddr}");
-        swarm.behaviour_mut().kademlia.get_closest_peers(parse_peer_id(&multiaddr)?);
+      Ok(Some(msg)) = stdin.next_line() => {
+        // Publish messages
+        if let Err(er)=  swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg.as_bytes()){
+          println!("❌ Failed to publish the message: {er}");
+        }
       }
       event = swarm.select_next_some() => match event {
         SwarmEvent::NewListenAddr { address, .. } => {
@@ -177,6 +179,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
           ..
         })) => {
           println!("🔍 Kademlia discovered new peers: {peers:?}");
+        }
+        // Gossipsub
+        SwarmEvent::Behaviour(MyBehaviourEvent::Gossipsub(gossipsub::Event::Message {
+          propagation_source: peer_id,
+          message,
+          ..
+        })) => {
+          let msg = String::from_utf8_lossy(&message.data);
+          println!("💌 Message from {peer_id}: {msg}");
         }
         // Others
         _ => {
