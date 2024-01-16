@@ -1,4 +1,4 @@
-# fly.toml app configuration file generated for p2p-bootstrap on 2024-01-11T11:41:36+07:00
+# fly.toml app configuration file generated for p2p-bootstrap-master-0 on 2024-01-16T14:40:14+07:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
@@ -9,8 +9,8 @@ primary_region = "hkg"
 [build]
 
 [[services]]
-internal_port = 8080
 protocol = "tcp"
+internal_port = 8080
 auto_stop_machines = true
 auto_start_machines = true
 min_machines_running = 0
