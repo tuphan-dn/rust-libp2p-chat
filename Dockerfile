@@ -5,4 +5,4 @@ COPY . .
 RUN cargo build --release
 
 EXPOSE 8080
-CMD ./target/release/rust-libp2p-chat
+CMD ./target/release/rust-libp2p-chat --seed master-1

@@ -8,6 +8,7 @@ use libp2p::{
   swarm::{NetworkBehaviour, SwarmEvent},
   tcp, yamux, PeerId, SwarmBuilder,
 };
+use sha3::{Digest, Keccak256};
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt, select};
 use tracing_subscriber::EnvFilter;
@@ -23,11 +24,14 @@ fn parse_peer_id(addr: &String) -> Result<PeerId, Box<dyn Error>> {
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+  /// If seed is provided, it will be used to create the keypair.
+  #[arg(short, long)]
+  seed: Option<String>,
   /// Start with a bootstrap node. If not provided, the current node will become a bootstrap node.
   #[arg(short, long)]
   bootstrap: Option<String>,
   /// Do not print fallback logs.
-  #[arg(short, long, default_value_t = false)]
+  #[arg(long, default_value_t = false)]
   silent: bool,
 }
 
@@ -41,9 +45,21 @@ struct MyBehaviour {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+  let Args {
+    seed,
+    bootstrap,
+    silent,
+  } = Args::parse();
+
   // Create a random key for ourselves & read user's inputs
-  let keypair = Keypair::generate_ed25519();
-  let Args { bootstrap, silent } = Args::parse();
+  let keypair = if let Some(preimg) = seed {
+    let mut hasher = Keccak256::new();
+    hasher.update(preimg.as_bytes());
+    let bytes = hasher.finalize();
+    Keypair::ed25519_from_bytes(bytes)?
+  } else {
+    Keypair::generate_ed25519()
+  };
 
   let _ = tracing_subscriber::fmt()
     .with_env_filter(EnvFilter::from_default_env())
