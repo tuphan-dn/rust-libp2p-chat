@@ -19,7 +19,6 @@ libp2p = { version = "0.53.2", features = [
   "noise",
   "tcp",
   "yamux",
-  "quic",
   "rsa",
   "ping",
   "autonat",
