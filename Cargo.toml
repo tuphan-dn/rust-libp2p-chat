@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1.35", features = ["full"] }
-async-trait = "0.1"
 futures = "0.3.30"
 libp2p = { version = "0.53.2", features = [
   "tokio",
@@ -16,6 +15,9 @@ libp2p = { version = "0.53.2", features = [
   "dns",
   "macros",
   "identify",
+  "noise",
+  "tcp",
+  "yamux",
   "quic",
   "rsa",
   "ping",
@@ -24,7 +26,5 @@ libp2p = { version = "0.53.2", features = [
 ] }
 tracing = "0.1.37"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-anyhow = "1.0.76"
 clap = { version = "4.4.12", features = ["derive"] }
-env_logger = "0.10"
 bs58 = "0.5.0"

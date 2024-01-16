@@ -1,20 +1,23 @@
-# fly.toml app configuration file generated for p2p-wild-wind-3030 on 2024-01-07T21:56:52+07:00
+# fly.toml app configuration file generated for p2p-bootstrap on 2024-01-11T11:41:36+07:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = "p2p-wild-wind-3030"
+app = "p2p-bootstrap"
 primary_region = "hkg"
 
 [build]
 
-[http_service]
+[[services]]
 internal_port = 8080
-force_https = true
-auto_stop_machines = true
+protocol = "udp"
+auto_stop_machines = false
 auto_start_machines = true
-min_machines_running = 0
+min_machines_running = 1
 processes = ["app"]
+
+[[services.ports]]
+port = 8080 # For UDP applications, make sure to bind the application to the same port as internal_port
 
 [[vm]]
 cpu_kind = "shared"

@@ -1,19 +1,23 @@
 use clap::Parser;
 use futures::stream::StreamExt;
 use libp2p::{
-  identify,
+  autonat, identify,
   identity::Keypair,
   kad::{self, store, BootstrapOk, GetClosestPeersOk, Mode},
+  noise, relay,
   swarm::{NetworkBehaviour, SwarmEvent},
-  PeerId, SwarmBuilder,
+  tcp, yamux, PeerId, SwarmBuilder,
 };
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt, select};
 use tracing_subscriber::EnvFilter;
 
-fn parse_id(addr: &String) -> &str {
+fn parse_peer_id(addr: &String) -> Result<PeerId, Box<dyn Error>> {
   let parts: Vec<&str> = addr.split("/p2p/").collect();
-  parts.last().copied().unwrap()
+  let str = parts.last().copied().ok_or("Cannot parse peer id.")?;
+  let buf = bs58::decode(str).into_vec()?;
+  let id = PeerId::from_bytes(&buf)?;
+  Ok(id)
 }
 
 #[derive(Parser, Debug)]
@@ -28,6 +32,8 @@ struct Args {
 struct MyBehaviour {
   identify: identify::Behaviour,
   kademlia: kad::Behaviour<store::MemoryStore>,
+  autonat: autonat::Behaviour,
+  relay: relay::Behaviour,
 }
 
 #[tokio::main]
@@ -42,7 +48,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
   let mut swarm = SwarmBuilder::with_existing_identity(keypair.clone())
     .with_tokio()
-    .with_quic()
+    .with_tcp(
+      tcp::Config::default(),
+      noise::Config::new,
+      yamux::Config::default,
+    )?
     .with_behaviour(|key| {
       // Create a Identify behaviour.
       let identify = identify::Behaviour::new(identify::Config::new(
@@ -54,23 +64,31 @@ async fn main() -> Result<(), Box<dyn Error>> {
       cfg.set_query_timeout(Duration::from_secs(5 * 60));
       let store = store::MemoryStore::new(key.public().to_peer_id());
       let kademlia = kad::Behaviour::with_config(key.public().to_peer_id(), store, cfg);
+      // Create a AutoNAT behaviour.
+      let autonat = autonat::Behaviour::new(key.public().to_peer_id(), Default::default());
+      // Create a Relay behaviour.
+      let relay = relay::Behaviour::new(key.public().to_peer_id(), Default::default());
       // Return my behavour
-      Ok(MyBehaviour { identify, kademlia })
+      Ok(MyBehaviour {
+        identify,
+        kademlia,
+        autonat,
+        relay,
+      })
     })?
     .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(3600))) // Disconnected after 1 hour idle
     .build();
 
   // Peer node: Listen on all interfaces and whatever port the OS assigns
   swarm.behaviour_mut().kademlia.set_mode(Some(Mode::Server));
-  swarm.listen_on("/ip4/127.0.0.1/udp/0/quic-v1".parse()?)?;
+  swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
 
   if let Some(bootstrap_addr) = bootstrap {
     // Add peers to the DHT
-    let id = PeerId::from_bytes(&bs58::decode(parse_id(&bootstrap_addr)).into_vec()?)?;
     swarm
       .behaviour_mut()
       .kademlia
-      .add_address(&id, bootstrap_addr.parse()?);
+      .add_address(&parse_peer_id(&bootstrap_addr)?, bootstrap_addr.parse()?);
     // Bootstrap the connection
     if let Err(e) = swarm.behaviour_mut().kademlia.bootstrap() {
       println!("⛔️ Failed to run Kademlia bootstrap: {e:?}");
@@ -85,11 +103,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
   loop {
     select! {
       Ok(Some(multiaddr)) = stdin.next_line() => {
-        // Add peers to the DHT
-        let id = PeerId::from_bytes(&bs58::decode(parse_id(&multiaddr)).into_vec()?)?;
         // Search for the closest peers
         println!("🔍 Searching for the closest peer to {multiaddr}");
-        swarm.behaviour_mut().kademlia.get_closest_peers(id);
+        swarm.behaviour_mut().kademlia.get_closest_peers(parse_peer_id(&multiaddr)?);
       }
       event = swarm.select_next_some() => match event {
         SwarmEvent::NewListenAddr { address, .. } => {
