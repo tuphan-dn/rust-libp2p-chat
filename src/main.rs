@@ -1,7 +1,7 @@
 use clap::Parser;
 use futures::stream::StreamExt;
 use libp2p::{
-  autonat, identify,
+  autonat, gossipsub, identify,
   identity::Keypair,
   kad::{self, store, BootstrapOk, GetClosestPeersOk, Mode},
   noise, ping,
@@ -34,11 +34,15 @@ struct MyBehaviour {
   identify: identify::Behaviour,
   kademlia: kad::Behaviour<store::MemoryStore>,
   autonat: autonat::Behaviour,
+  gossipsub: gossipsub::Behaviour,
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-  use utils::peer::{ed25519_from_seed, parse_peer_id};
+  use utils::{
+    msg::message_id,
+    peer::{ed25519_from_seed, parse_peer_id},
+  };
 
   let Args {
     seed,
@@ -81,12 +85,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
       let kademlia = kad::Behaviour::with_config(key.public().to_peer_id(), store, cfg);
       // Create a AutoNAT behaviour.
       let autonat = autonat::Behaviour::new(key.public().to_peer_id(), Default::default());
+      // Create a Gossipsub behaviour.
+      let gossipsub = gossipsub::Behaviour::new(
+        gossipsub::MessageAuthenticity::Signed(key.clone()),
+        gossipsub::ConfigBuilder::default()
+          .heartbeat_interval(Duration::from_secs(10))
+          .validation_mode(gossipsub::ValidationMode::Strict)
+          .message_id_fn(message_id)
+          .build()?,
+      )?;
       // Return my behavour
       Ok(MyBehaviour {
         ping,
         identify,
         kademlia,
         autonat,
+        gossipsub,
       })
     })?
     .with_swarm_config(|c| c.with_idle_connection_timeout(Duration::from_secs(3600))) // Disconnected after 1 hour idle
