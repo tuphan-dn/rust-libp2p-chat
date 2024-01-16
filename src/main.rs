@@ -26,6 +26,9 @@ struct Args {
   /// Start with a bootstrap node. If not provided, the current node will become a bootstrap node.
   #[arg(short, long)]
   bootstrap: Option<String>,
+  /// Do not print fallback logs.
+  #[arg(short, long, default_value_t = false)]
+  silent: bool,
 }
 
 #[derive(NetworkBehaviour)]
@@ -40,7 +43,7 @@ struct MyBehaviour {
 async fn main() -> Result<(), Box<dyn Error>> {
   // Create a random key for ourselves & read user's inputs
   let keypair = Keypair::generate_ed25519();
-  let Args { bootstrap } = Args::parse();
+  let Args { bootstrap, silent } = Args::parse();
 
   let _ = tracing_subscriber::fmt()
     .with_env_filter(EnvFilter::from_default_env())
@@ -53,6 +56,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
       noise::Config::new,
       yamux::Config::default,
     )?
+    .with_dns()?
     .with_behaviour(|key| {
       // Create a Identify behaviour.
       let identify = identify::Behaviour::new(identify::Config::new(
@@ -153,7 +157,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
         // Others
         _ => {
-          println!("❓ Other Behaviour events {event:?}");
+          if silent != true {
+            println!("❓ Other Behaviour events {event:?}");
+          }
         }
       }
     }
