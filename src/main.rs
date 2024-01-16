@@ -4,22 +4,15 @@ use libp2p::{
   autonat, identify,
   identity::Keypair,
   kad::{self, store, BootstrapOk, GetClosestPeersOk, Mode},
-  noise, relay,
+  noise, ping, relay,
   swarm::{NetworkBehaviour, SwarmEvent},
-  tcp, yamux, PeerId, SwarmBuilder,
+  tcp, yamux, SwarmBuilder,
 };
-use sha3::{Digest, Keccak256};
 use std::{error::Error, time::Duration};
 use tokio::{io, io::AsyncBufReadExt, select};
 use tracing_subscriber::EnvFilter;
 
-fn parse_peer_id(addr: &String) -> Result<PeerId, Box<dyn Error>> {
-  let parts: Vec<&str> = addr.split("/p2p/").collect();
-  let str = parts.last().copied().ok_or("Cannot parse peer id.")?;
-  let buf = bs58::decode(str).into_vec()?;
-  let id = PeerId::from_bytes(&buf)?;
-  Ok(id)
-}
+pub mod utils;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -37,6 +30,7 @@ struct Args {
 
 #[derive(NetworkBehaviour)]
 struct MyBehaviour {
+  ping: ping::Behaviour, // To keep the fly alive when connecting
   identify: identify::Behaviour,
   kademlia: kad::Behaviour<store::MemoryStore>,
   autonat: autonat::Behaviour,
@@ -45,6 +39,8 @@ struct MyBehaviour {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+  use utils::peer::{ed25519_from_seed, parse_peer_id};
+
   let Args {
     seed,
     bootstrap,
@@ -52,11 +48,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
   } = Args::parse();
 
   // Create a random key for ourselves & read user's inputs
-  let keypair = if let Some(preimg) = seed {
-    let mut hasher = Keccak256::new();
-    hasher.update(preimg.as_bytes());
-    let bytes = hasher.finalize();
-    Keypair::ed25519_from_bytes(bytes)?
+  let keypair = if let Some(s) = seed {
+    ed25519_from_seed(&s)?
   } else {
     Keypair::generate_ed25519()
   };
@@ -74,6 +67,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     )?
     .with_dns()?
     .with_behaviour(|key| {
+      // Create a Ping behaviour
+      let ping = ping::Behaviour::default();
       // Create a Identify behaviour.
       let identify = identify::Behaviour::new(identify::Config::new(
         "/ipfs/id/1.0.0".to_string(),
@@ -90,6 +85,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
       let relay = relay::Behaviour::new(key.public().to_peer_id(), Default::default());
       // Return my behavour
       Ok(MyBehaviour {
+        ping,
         identify,
         kademlia,
         autonat,
