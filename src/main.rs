@@ -135,6 +135,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         // Publish messages
         if let Err(er)=  swarm.behaviour_mut().gossipsub.publish(topic.clone(), msg.as_bytes()){
           println!("❌ Failed to publish the message: {er}");
+        } else {
+          println!("🛫 .................. Sent");
         }
       }
       event = swarm.select_next_some() => match event {
