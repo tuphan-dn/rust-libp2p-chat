@@ -44,7 +44,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     peer::{ed25519_from_seed, parse_peer_id},
   };
 
-  let topic = gossipsub::IdentTopic::new("desnet-the-room");
   let Args {
     seed,
     bootstrap,
@@ -125,7 +124,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
   // Read full lines from stdin
   let mut stdin = io::BufReader::new(io::stdin()).lines();
-  println!("💻 Enter a multiaddr to the closest peer:");
+  let topic = gossipsub::IdentTopic::new("desnet-the-room");
+  swarm.behaviour_mut().gossipsub.subscribe(&topic)?;
+  println!("💻 Type to send messages to others here:");
 
   // Kick it off
   loop {
