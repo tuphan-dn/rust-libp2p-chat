@@ -81,7 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
   // Peer node: Listen on all interfaces and whatever port the OS assigns
   swarm.behaviour_mut().kademlia.set_mode(Some(Mode::Server));
-  swarm.listen_on("/ip4/0.0.0.0/tcp/0".parse()?)?;
+  swarm.listen_on("/ip6/::/tcp/0".parse()?)?;
 
   if let Some(bootstrap_addr) = bootstrap {
     // Add peers to the DHT
