@@ -23,6 +23,9 @@ struct Args {
   /// Start with a bootstrap node. If not provided, the current node will become a bootstrap node.
   #[arg(short, long)]
   bootstrap: Option<String>,
+  /// Port.
+  #[arg(short, long, default_value_t = 0)]
+  port: u16,
   /// Do not print fallback logs.
   #[arg(long, default_value_t = false)]
   silent: bool,
@@ -47,9 +50,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
   let Args {
     seed,
     bootstrap,
+    port,
     silent,
   } = Args::parse();
-  let port = std::env::var("PORT").unwrap_or("0".to_string());
 
   // Create a random key for ourselves & read user's inputs
   let keypair = if let Some(s) = seed {
